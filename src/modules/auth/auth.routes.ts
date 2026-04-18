@@ -3,6 +3,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthRepository } from './auth.repository';
 import { validateBody, validateCookie } from '../../shared/middlewares/validation';
+import { authMiddleware } from '../../shared/middlewares/auth';
 import { RegisterDtoSchema, LoginDtoSchema, LogoutAllDtoSchema, CookieRefreshTokenDtoSchema } from './auth.dto';
 
 const router = Router();
@@ -15,5 +16,6 @@ router.post('/login', validateBody(LoginDtoSchema), (req, res) => authController
 router.post('/refresh', validateCookie(CookieRefreshTokenDtoSchema), (req, res) => authController.refresh(req, res));
 router.post('/logout', validateCookie(CookieRefreshTokenDtoSchema), (req, res) => authController.logout(req, res));
 router.post('/logout-all', validateBody(LogoutAllDtoSchema), (req, res) => authController.logoutAll(req, res));
+router.get('/profile', authMiddleware, (req, res) => authController.getProfile(req, res));
 
 export default router;

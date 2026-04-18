@@ -3,7 +3,7 @@ import { AuthService } from '../../modules/auth/auth.service';
 import { AuthRepository } from '../../modules/auth/auth.repository';
 import { UserRole } from '../../modules/auth/entities/User';
 import { AppError } from './errorHandler';
-  
+
 export const authMiddleware = async (
   req: Request,
   res: Response,

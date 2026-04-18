@@ -77,4 +77,24 @@ export class AuthController {
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'Logged out from all devices' });
     res.status(200).json(validatedResponse);
   }
+
+  async getProfile(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    // El middleware ya pobló req.user con los datos del token
+    const validatedResponse = AuthResponseDtoSchema.parse({
+      user: {
+        id: req.user.userId,
+        email: req.user.email,
+        role: req.user.role,
+        // Nota: Si necesitáramos más datos (como createdAt), 
+        // acá llamaríamos al authService.findById
+      }
+    });
+
+    res.status(200).json(validatedResponse);
+  }
 }
