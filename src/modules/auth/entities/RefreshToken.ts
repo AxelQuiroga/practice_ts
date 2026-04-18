@@ -19,7 +19,7 @@ export class RefreshToken {
   @Column()
   expiresAt: Date;
 
-  @Column({ default: true })
+  @Column({ default: false })
   isRevoked: boolean;
 
   @CreateDateColumn()

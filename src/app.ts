@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import authRoutes from './routes/auth';
-import protectedRoutes from './routes/protected';
+import authRoutes from './modules/auth/auth.routes';
+import protectedRoutes from './modules/auth/protected';
+import { errorHandler, notFoundHandler } from './shared/middlewares/errorHandler';
 
 const app = express();
 
@@ -14,11 +15,15 @@ app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api', protectedRoutes);
+app.use('/api/protected', protectedRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
+
+// Error handling
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;

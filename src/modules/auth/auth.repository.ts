@@ -1,9 +1,10 @@
 import { Repository } from 'typeorm';
-import { AppDataSource } from '../config/database';
-import { User } from '../entities/User';
-import { RefreshToken } from '../entities/RefreshToken';
+import { AppDataSource } from '../../shared/config/database';
+import { User } from './entities/User';
+import { RefreshToken } from './entities/RefreshToken';
+import { IAuthRepository } from './auth.types';
 
-export class AuthRepository {
+export class AuthRepository implements IAuthRepository {
   private userRepository: Repository<User>;
   private refreshTokenRepository: Repository<RefreshToken>;
 

@@ -4,9 +4,12 @@ Backend REST API con autenticación JWT y autorización basada en roles, constru
 
 ## 🚀 Características
 
+- Arquitectura modular con separación de concerns
 - Autenticación JWT con Access Token y Refresh Token
 - Sistema de roles (USER, ADMIN)
+- Validación de datos con Zod
 - Middleware de autenticación y autorización
+- Manejo centralizado de errores
 - ORM TypeORM con PostgreSQL
 - Gestión de cookies HTTP-only para tokens
 - API RESTful estructurada
@@ -79,23 +82,25 @@ npm test       # Ejecuta tests (por configurar)
 ```
 backend/
 ├── src/
-│   ├── config/
-│   │   └── database.ts       # Configuración de TypeORM
-│   ├── controllers/
-│   │   └── AuthController.ts # Lógica de controladores de autenticación
-│   ├── entities/
-│   │   ├── User.ts          # Entidad User con roles
-│   │   └── RefreshToken.ts  # Entidad RefreshToken
-│   ├── middlewares/
-│   │   └── auth.ts          # Middleware de autenticación y autorización
-│   ├── repositories/
-│   │   └── AuthRepository.ts # Repositorio de autenticación
-│   ├── routes/
-│   │   ├── auth.ts          # Rutas de autenticación
-│   │   └── protected.ts    # Rutas protegidas
-│   ├── services/
-│   │   └── AuthService.ts   # Lógica de negocio de autenticación
-│   ├── utils/               # Utilidades
+│   ├── modules/             # Módulos de funcionalidad (features)
+│   │   └── auth/            # Módulo de autenticación
+│   │       ├── auth.controller.ts   # Controlador de autenticación
+│   │       ├── auth.dto.ts          # DTOs y schemas de validación (Zod)
+│   │       ├── auth.repository.ts   # Repositorio de datos
+│   │       ├── auth.routes.ts       # Rutas de autenticación
+│   │       ├── auth.service.ts      # Lógica de negocio
+│   │       ├── auth.types.ts        # Tipos TypeScript
+│   │       └── protected.ts         # Rutas protegidas de ejemplo
+│   ├── shared/             # Código compartido entre módulos
+│   │   ├── config/
+│   │   │   └── database.ts          # Configuración de TypeORM
+│   │   ├── entities/
+│   │   │   ├── User.ts              # Entidad User con roles
+│   │   │   └── RefreshToken.ts      # Entidad RefreshToken
+│   │   └── middlewares/
+│   │       ├── auth.ts              # Middleware de autenticación y autorización
+│   │       ├── errorHandler.ts      # Manejo centralizado de errores
+│   │       └── validation.ts        # Middleware de validación con Zod
 │   ├── app.ts               # Configuración de Express
 │   └── server.ts            # Punto de entrada
 ├── .env                     # Variables de entorno (no versionar)
@@ -118,14 +123,14 @@ backend/
 | POST | `/api/auth/logout` | Cerrar sesión (token actual) |
 | POST | `/api/auth/logout-all` | Cerrar todas las sesiones |
 
-### Rutas Protegidas (`/api`)
+### Rutas Protegidas (`/api/protected`)
 
 | Método | Endpoint | Descripción | Requisitos |
 |--------|----------|-------------|------------|
-| GET | `/api/public` | Ruta pública | Ninguno |
-| GET | `/api/authenticated` | Ruta autenticada | Login requerido |
-| GET | `/api/admin` | Ruta admin | Rol ADMIN |
-| GET | `/api/user-or-admin` | Ruta para USER o ADMIN | Rol USER o ADMIN |
+| GET | `/api/protected/public` | Ruta pública | Ninguno |
+| GET | `/api/protected/authenticated` | Ruta autenticada | Login requerido |
+| GET | `/api/protected/admin` | Ruta admin | Rol ADMIN |
+| GET | `/api/protected/user-or-admin` | Ruta para USER o ADMIN | Rol USER o ADMIN |
 
 ### Health Check
 
@@ -152,7 +157,7 @@ curl -X POST http://localhost:3009/api/auth/login \
 ### Ejemplo de Ruta Protegida
 
 ```bash
-curl -X GET http://localhost:3009/api/authenticated \
+curl -X GET http://localhost:3009/api/protected/authenticated \
   -b cookies.txt
 ```
 
@@ -161,9 +166,11 @@ curl -X GET http://localhost:3009/api/authenticated \
 - **USER**: Rol por defecto para usuarios registrados
 - **ADMIN**: Rol con permisos administrativos
 
-## 🛡️ Middleware de Autorización
+## 🛡️ Middleware
 
-El proyecto incluye middleware para proteger rutas:
+El proyecto incluye varios middleware para proteger y validar rutas:
+
+### Autenticación y Autorización
 
 ```typescript
 // Requiere autenticación
@@ -175,6 +182,26 @@ requireRole(UserRole.ADMIN)
 // Requiere rol de administrador (helper)
 requireAdmin
 ```
+
+### Validación
+
+Los endpoints utilizan validación con Zod para asegurar la integridad de los datos:
+
+```typescript
+// Validar cuerpo de la solicitud
+validateBody(RegisterDtoSchema)
+
+// Validar cookies
+validateCookie(CookieRefreshTokenDtoSchema)
+```
+
+### Manejo de Errores
+
+El proyecto tiene manejo centralizado de errores con `errorHandler` y `notFoundHandler`:
+
+- **errorHandler**: Captura y formatea errores de manera consistente
+- **notFoundHandler**: Maneja rutas no encontradas
+- **AppError**: Clase personalizada para errores de aplicación
 
 ## 🧪 Testing
 
@@ -189,6 +216,11 @@ Los tests aún no están implementados. Se recomienda agregar:
 - Los tokens se almacenan en cookies HTTP-only por seguridad
 - Las contraseñas se hashean usando bcrypt
 - TypeORM maneja las migraciones automáticamente en desarrollo
+- Arquitectura modular: cada feature es un módulo en `modules/`
+- Código compartido en `shared/` (config, entities, middlewares)
+- Validación de datos con Zod schemas en cada módulo
+- Manejo centralizado de errores con middleware `errorHandler`
+- Los DTOs definen la estructura de entrada/salida de datos
 
 ## 🤝 Contribución
 
