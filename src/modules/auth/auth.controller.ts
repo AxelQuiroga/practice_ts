@@ -1,22 +1,22 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { IAuthService } from './auth.types';
 import { RegisterDto, LoginDto, LogoutAllDto, AuthResponseDtoSchema, TokenResponseDtoSchema, UsersListResponseDtoSchema } from './auth.dto';
 
 export class AuthController {
   constructor(private readonly authService: IAuthService) {}
 
-  async register(req: Request, res: Response): Promise<void> {
+  async register(req: Request, res: Response, next: NextFunction): Promise<void> {
    try {
      const dto: RegisterDto = req.body;
     const result = await this.authService.register(dto.email, dto.password);
     const validatedResponse = AuthResponseDtoSchema.parse(result);
     res.status(201).json(validatedResponse);
    } catch (error) {
-    res.status(500).json({ error: 'Error al registrar el usuario' });
+    next(error);
    }
   }
 
-  async login(req: Request, res: Response): Promise<void> {
+  async login(req: Request, res: Response, next: NextFunction): Promise<void> {
    try {
     const dto: LoginDto = req.body;
     const result = await this.authService.login(dto.email, dto.password);
@@ -38,12 +38,11 @@ export class AuthController {
     const validatedResponse = AuthResponseDtoSchema.parse({ user: result.user });
     res.status(200).json(validatedResponse);
    } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al iniciar sesión' });
+    next(error);
    }
   }
 
-  async refresh(req: Request, res: Response): Promise<void> {
+  async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
    try {
      const { refreshToken } = req.cookies;
     const result = await this.authService.refresh(refreshToken);
@@ -65,12 +64,11 @@ export class AuthController {
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'Token refreshed' });
     res.status(200).json(validatedResponse);
    } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al actualizar el token' });
+    next(error);
    }
   }
 
-  async logout(req: Request, res: Response): Promise<void> {
+  async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { refreshToken } = req.cookies;
     await this.authService.logout(refreshToken);
@@ -81,12 +79,11 @@ export class AuthController {
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'Logged out successfully' });
     res.status(200).json(validatedResponse);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error al cerrar sesión' });
+      next(error);
     }
   }
 
-  async logoutAll(req: Request, res: Response): Promise<void> {
+  async logoutAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const dto: LogoutAllDto = req.body;
     await this.authService.logoutAll(dto.userId);
@@ -97,12 +94,11 @@ export class AuthController {
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'Logged out from all devices' });
     res.status(200).json(validatedResponse);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error al cerrar sesión' });
+      next(error);
     }
   }
 
-  async getProfile(req: Request, res: Response): Promise<void> {
+  async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });
       return;
@@ -122,26 +118,24 @@ export class AuthController {
     res.status(200).json(validatedResponse);
   }
 
-  async findAllUsers(req: Request, res: Response): Promise<void> {
+  async findAllUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
     const result = await this.authService.findAllUsers();
     const validatedResponse = UsersListResponseDtoSchema.parse({ users: result });
     res.status(200).json(validatedResponse);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error al listar los usuarios' });
+      next(error);
     }
   } 
 
-  async deleteUser(req: Request, res: Response): Promise<void> {
+  async deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
      const { id } = req.params;
     await this.authService.deleteUser(id as string);
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'User deleted successfully' });
     res.status(200).json(validatedResponse);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error al eliminar el usuario' });
+      next(error);
     }
   } 
 
