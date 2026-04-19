@@ -1,4 +1,5 @@
 import { UserResponseDto } from './auth.dto';
+import { User } from './entities/User';
 
 export interface IAuthRepository {
   findByEmail(email: string): Promise<any>;
@@ -8,6 +9,8 @@ export interface IAuthRepository {
   findRefreshToken(token: string): Promise<any>;
   revokeRefreshToken(token: string): Promise<void>;
   revokeAllUserTokens(userId: string): Promise<void>;
+  findAllUsers(): Promise<User[]>;
+  deleteUser(id: string): Promise<void>;
 }
 
 export interface IAuthService {
@@ -17,6 +20,8 @@ export interface IAuthService {
   logout(refreshToken: string): Promise<void>;
   logoutAll(userId: string): Promise<void>;
   verifyAccessToken(token: string): { userId: string; email: string; role: string };
+  findAllUsers(): Promise<UserResponseDto[]>;
+  deleteUser(id: string): Promise<void>;
 }
 
 export type { UserResponseDto };

@@ -1,18 +1,23 @@
 import { Request, Response } from 'express';
 import { IAuthService } from './auth.types';
-import { RegisterDto, LoginDto, LogoutAllDto, AuthResponseDtoSchema, TokenResponseDtoSchema } from './auth.dto';
+import { RegisterDto, LoginDto, LogoutAllDto, AuthResponseDtoSchema, TokenResponseDtoSchema, UsersListResponseDtoSchema } from './auth.dto';
 
 export class AuthController {
   constructor(private readonly authService: IAuthService) {}
 
   async register(req: Request, res: Response): Promise<void> {
-    const dto: RegisterDto = req.body;
+   try {
+     const dto: RegisterDto = req.body;
     const result = await this.authService.register(dto.email, dto.password);
     const validatedResponse = AuthResponseDtoSchema.parse(result);
     res.status(201).json(validatedResponse);
+   } catch (error) {
+    res.status(500).json({ error: 'Error al registrar el usuario' });
+   }
   }
 
   async login(req: Request, res: Response): Promise<void> {
+   try {
     const dto: LoginDto = req.body;
     const result = await this.authService.login(dto.email, dto.password);
 
@@ -32,10 +37,15 @@ export class AuthController {
 
     const validatedResponse = AuthResponseDtoSchema.parse({ user: result.user });
     res.status(200).json(validatedResponse);
+   } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al iniciar sesión' });
+   }
   }
 
   async refresh(req: Request, res: Response): Promise<void> {
-    const { refreshToken } = req.cookies;
+   try {
+     const { refreshToken } = req.cookies;
     const result = await this.authService.refresh(refreshToken);
 
     res.cookie('accessToken', result.accessToken, {
@@ -54,10 +64,15 @@ export class AuthController {
 
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'Token refreshed' });
     res.status(200).json(validatedResponse);
+   } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al actualizar el token' });
+   }
   }
 
   async logout(req: Request, res: Response): Promise<void> {
-    const { refreshToken } = req.cookies;
+    try {
+      const { refreshToken } = req.cookies;
     await this.authService.logout(refreshToken);
 
     res.clearCookie('accessToken');
@@ -65,10 +80,15 @@ export class AuthController {
 
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'Logged out successfully' });
     res.status(200).json(validatedResponse);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Error al cerrar sesión' });
+    }
   }
 
   async logoutAll(req: Request, res: Response): Promise<void> {
-    const dto: LogoutAllDto = req.body;
+    try {
+      const dto: LogoutAllDto = req.body;
     await this.authService.logoutAll(dto.userId);
 
     res.clearCookie('accessToken');
@@ -76,6 +96,10 @@ export class AuthController {
 
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'Logged out from all devices' });
     res.status(200).json(validatedResponse);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Error al cerrar sesión' });
+    }
   }
 
   async getProfile(req: Request, res: Response): Promise<void> {
@@ -97,4 +121,28 @@ export class AuthController {
 
     res.status(200).json(validatedResponse);
   }
+
+  async findAllUsers(req: Request, res: Response): Promise<void> {
+    try {
+    const result = await this.authService.findAllUsers();
+    const validatedResponse = UsersListResponseDtoSchema.parse({ users: result });
+    res.status(200).json(validatedResponse);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Error al listar los usuarios' });
+    }
+  } 
+
+  async deleteUser(req: Request, res: Response): Promise<void> {
+    try {
+     const { id } = req.params;
+    await this.authService.deleteUser(id as string);
+    const validatedResponse = TokenResponseDtoSchema.parse({ message: 'User deleted successfully' });
+    res.status(200).json(validatedResponse);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Error al eliminar el usuario' });
+    }
+  } 
+
 }

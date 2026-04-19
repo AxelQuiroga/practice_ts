@@ -114,4 +114,18 @@ export class AuthService implements IAuthService {
       updatedAt: user.updatedAt,
     };
   }
+
+  async findAllUsers(): Promise<UserResponseDto[]> {
+    const users = await this.authRepository.findAllUsers()
+
+    return users.map(user => this.toUserResponseDto(user));
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    const user = await this.authRepository.findById(id);
+    if (!user) {
+      throw new AppError(404, 'User not found');
+    }
+    return this.authRepository.deleteUser(id);
+  }
 }

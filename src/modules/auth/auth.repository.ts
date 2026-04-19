@@ -56,4 +56,18 @@ export class AuthRepository implements IAuthRepository {
       .where('expiresAt < :now', { now: new Date() })
       .execute();
   }
+
+  async findAllUsers(): Promise<User[]> {
+    return await this.userRepository.createQueryBuilder("user")
+  .where("user.role = :role", { role: "user" })
+  .getMany();
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await this.userRepository.createQueryBuilder()
+  .delete()
+  .from(User)
+  .where("id = :id", { id })
+  .execute()
+  }
 }

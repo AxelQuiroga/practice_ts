@@ -51,6 +51,9 @@ export const ProtectedRouteResponseDtoSchema = z.object({
   user: ProtectedUserResponseDtoSchema,
 });
 
+export const UsersListResponseDtoSchema = z.object({
+  users: z.array(UserResponseDtoSchema),
+});
 // Types
 export type RegisterDto = z.infer<typeof RegisterDtoSchema>;
 export type LoginDto = z.infer<typeof LoginDtoSchema>;
@@ -62,3 +65,4 @@ export type ProtectedUserResponseDto = z.infer<typeof ProtectedUserResponseDtoSc
 export type AuthResponseDto = z.infer<typeof AuthResponseDtoSchema>;
 export type TokenResponseDto = z.infer<typeof TokenResponseDtoSchema>;
 export type ProtectedRouteResponseDto = z.infer<typeof ProtectedRouteResponseDtoSchema>;
+export type UsersListResponseDto = z.infer<typeof UsersListResponseDtoSchema>;
