@@ -1,21 +1,17 @@
 import { Router } from 'express';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { AuthRepository } from './auth.repository';
 import { validateBody, validateCookie } from '../../shared/middlewares/validation';
 import { authMiddleware } from '../../shared/middlewares/auth';
 import { RegisterDtoSchema, LoginDtoSchema, LogoutAllDtoSchema, CookieRefreshTokenDtoSchema } from './auth.dto';
+import { NextFunction, Request, Response } from 'express';
+import { authController } from '../../shared/config/dependencies';
 
 const router = Router();
-const authRepo = new AuthRepository();
-const authService = new AuthService(authRepo);
-const authController = new AuthController(authService);
 
-router.post('/register', validateBody(RegisterDtoSchema), (req, res) => authController.register(req, res));
-router.post('/login', validateBody(LoginDtoSchema), (req, res) => authController.login(req, res));
-router.post('/refresh', validateCookie(CookieRefreshTokenDtoSchema), (req, res) => authController.refresh(req, res));
-router.post('/logout', validateCookie(CookieRefreshTokenDtoSchema), (req, res) => authController.logout(req, res));
-router.post('/logout-all', validateBody(LogoutAllDtoSchema), (req, res) => authController.logoutAll(req, res));
-router.get('/profile', authMiddleware, (req, res) => authController.getProfile(req, res));
+router.post('/register', validateBody(RegisterDtoSchema), (req: Request, res: Response, next: NextFunction) => authController.register(req, res, next));
+router.post('/login', validateBody(LoginDtoSchema), (req: Request, res: Response, next: NextFunction) => authController.login(req, res, next));
+router.post('/refresh', validateCookie(CookieRefreshTokenDtoSchema), (req: Request, res: Response, next: NextFunction) => authController.refresh(req, res, next));
+router.post('/logout', validateCookie(CookieRefreshTokenDtoSchema), (req: Request, res: Response, next: NextFunction) => authController.logout(req, res, next));
+router.post('/logout-all', validateBody(LogoutAllDtoSchema), (req: Request, res: Response, next: NextFunction) => authController.logoutAll(req, res, next));
+router.get('/profile', authMiddleware, (req: Request, res: Response, next: NextFunction) => authController.getProfile(req, res, next));
 
 export default router;

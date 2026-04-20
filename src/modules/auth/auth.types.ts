@@ -11,6 +11,7 @@ export interface IAuthRepository {
   revokeAllUserTokens(userId: string): Promise<void>;
   findAllUsers(): Promise<User[]>;
   deleteUser(id: string): Promise<void>;
+  countByRole(role: string): Promise<number>;
 }
 
 export interface IAuthService {
@@ -21,7 +22,8 @@ export interface IAuthService {
   logoutAll(userId: string): Promise<void>;
   verifyAccessToken(token: string): { userId: string; email: string; role: string };
   findAllUsers(): Promise<UserResponseDto[]>;
-  deleteUser(id: string): Promise<void>;
+  deleteUser(id: string, adminId: string): Promise<void>;
+  countByRole(role: string): Promise<number>;
 }
 
 export type { UserResponseDto };

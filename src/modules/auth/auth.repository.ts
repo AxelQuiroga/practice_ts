@@ -1,6 +1,6 @@
 import { Repository } from 'typeorm';
 import { AppDataSource } from '../../shared/config/database';
-import { User } from './entities/User';
+import { User, UserRole } from './entities/User';
 import { RefreshToken } from './entities/RefreshToken';
 import { IAuthRepository } from './auth.types';
 
@@ -59,15 +59,23 @@ export class AuthRepository implements IAuthRepository {
 
   async findAllUsers(): Promise<User[]> {
     return await this.userRepository.createQueryBuilder("user")
-  .where("user.role = :role", { role: "user" })
+  .where("user.role = :role", { role: UserRole.USER })
   .getMany();
   }
 
   async deleteUser(id: string): Promise<void> {
+    
     await this.userRepository.createQueryBuilder()
   .delete()
   .from(User)
   .where("id = :id", { id })
   .execute()
   }
+
+  async countByRole(role: string): Promise<number> {
+  return await this.userRepository
+    .createQueryBuilder('user')
+    .where('user.role = :role', { role })
+    .getCount();
+}
 }

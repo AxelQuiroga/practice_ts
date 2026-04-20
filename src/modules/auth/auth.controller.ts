@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { IAuthService } from './auth.types';
-import { RegisterDto, LoginDto, LogoutAllDto, AuthResponseDtoSchema, TokenResponseDtoSchema, UsersListResponseDtoSchema } from './auth.dto';
+import { RegisterDto, LoginDto, LogoutAllDto, AuthResponseDtoSchema, TokenResponseDtoSchema, UsersListResponseDtoSchema, AdminStatsResponseDtoSchema } from './auth.dto';
+import { UserRole } from './entities/User';
 
 export class AuthController {
   constructor(private readonly authService: IAuthService) {}
@@ -131,12 +132,28 @@ export class AuthController {
   async deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
      const { id } = req.params;
-    await this.authService.deleteUser(id as string);
+     const adminId = req.user?.userId;
+    await this.authService.deleteUser(id as string, adminId as string);
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'User deleted successfully' });
     res.status(200).json(validatedResponse);
     } catch (error) {
       next(error);
     }
-  } 
+  }   
 
+  async getAdminStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const totalUsers = await this.authService.countByRole(UserRole.USER);
+      const totalAdmins = await this.authService.countByRole(UserRole.ADMIN);
+
+      const validatedResponse = AdminStatsResponseDtoSchema.parse({
+        totalUsers,
+        totalAdmins,
+      });
+
+      res.status(200).json(validatedResponse);
+    } catch (error) {
+      next(error);
+    }
+  }
 }

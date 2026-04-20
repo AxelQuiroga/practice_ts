@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { UserResponseDto, IAuthService, IAuthRepository } from './auth.types';
 import { AppError } from '../../shared/middlewares/errorHandler';
-import { User } from './entities/User';
+import { User, UserRole } from './entities/User';
 
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY = '7d';
@@ -121,11 +121,27 @@ export class AuthService implements IAuthService {
     return users.map(user => this.toUserResponseDto(user));
   }
 
-  async deleteUser(id: string): Promise<void> {
-    const user = await this.authRepository.findById(id);
-    if (!user) {
-      throw new AppError(404, 'User not found');
+  async deleteUser(id: string, adminId:string): Promise<void> {
+    if(id === adminId){
+      throw new AppError(403,"Operación bloqueada: No podés eliminarte a vos mismo.");
     }
+    const userToDelete = await this.authRepository.findById(id);
+    if (!userToDelete) throw new AppError(404,"Usuario no encontrado.");
+
+    if (userToDelete.role === UserRole.ADMIN) {
+      const adminCount = await this.authRepository.countByRole(UserRole.ADMIN);
+      
+      if (adminCount <= 1) {
+        throw new AppError(403,"Operación bloqueada: No puedes eliminar al último administrador del sistema.");
+      }
+    }
+
+    await this.authRepository.revokeAllUserTokens(id); 
+
     return this.authRepository.deleteUser(id);
+  }
+
+  async countByRole(role: UserRole): Promise<number> {
+    return this.authRepository.countByRole(role);
   }
 }
