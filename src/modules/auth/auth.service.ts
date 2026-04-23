@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserResponseDto, IAuthService, IAuthRepository } from './auth.types';
 import { AppError } from '../../shared/middlewares/errorHandler';
 import { User, UserRole } from './entities/User';
-import { getIO } from '../../shared/infrastructure/socket/socket.manager';
+
 
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY = '7d';
@@ -24,9 +24,7 @@ export class AuthService implements IAuthService {
       password: hashedPassword,
     });
 
-    const io = getIO();
     const responseDto = this.toUserResponseDto(user);
-    io.to("admins").emit("user:created", responseDto);
     return { user: responseDto };
   }
 

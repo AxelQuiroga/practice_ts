@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { IAuthService } from './auth.types';
 import { RegisterDto, LoginDto, LogoutAllDto, AuthResponseDtoSchema, TokenResponseDtoSchema, UsersListResponseDtoSchema, AdminStatsResponseDtoSchema } from './auth.dto';
 import { UserRole } from './entities/User';
+import { getIO } from "../../shared/infrastructure/socket/socket.manager";
 
 export class AuthController {
   constructor(private readonly authService: IAuthService) {}
@@ -12,6 +13,8 @@ export class AuthController {
     const result = await this.authService.register(dto.email, dto.password);
     const validatedResponse = AuthResponseDtoSchema.parse(result);
     res.status(201).json(validatedResponse);
+    const io = getIO();
+    io.to("admins").emit("user:created", validatedResponse);
    } catch (error) {
     next(error);
    }

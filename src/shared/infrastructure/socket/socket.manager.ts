@@ -2,6 +2,7 @@ import { Server as HTTPServer } from "http";
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import env from "dotenv";
+import { chatService } from "../../../shared/config/dependencies";
 
 env.config();
 
@@ -57,8 +58,10 @@ export const initSocket = (httpServer: HTTPServer): Server => {
         }
     });
 
-    io.on("connection", (socket: Socket) => {
+    io.on("connection", async (socket: Socket) => {
         console.log("🟢 Cliente conectado:", socket.id);
+
+
 
         const user = socket.data.user;
 
@@ -75,31 +78,57 @@ export const initSocket = (httpServer: HTTPServer): Server => {
         socket.join(user.userId);
         console.log(`User ${user.email} se unió a su sala privada: ${user.userId}`);
 
-        // El cliente envía un mensaje de soporte
-        socket.on("support:message", (data: { text: string }) => {
-            // Le avisamos a los ADMINS que hay un nuevo mensaje
-            // Incluimos quién lo mandó para que el admin sepa a quién responder
-            io?.to("admins").emit("support:new_message", {
-                userId: user.userId,
-                email: user.email,
-                text: data.text,
-                timestamp: new Date()
-            });
-        });
-      
-        socket.on("support:response", (data: { userId: string; response: string }) => {
-            if (user.role !== "ADMIN") {
-                console.warn(`⚠️ Intento de respuesta de soporte no autorizada por: ${user.email}`);
-                return;
-            }
+        // Adentro de io.on("connection", ...)
+        const history = await chatService.getHistory(user.userId);
+        socket.emit("support:history", history);
 
-            io?.to(data.userId).emit("support:response", {
-                response: data.response,
-                adminId: user.userId,
-                adminEmail: user.email,
-                timestamp: new Date(),
-            });
+        // El cliente envía un mensaje de soporte
+    socket.on("support:message", async (data: { text: string }, callback: Function) => {
+    try {
+        // 1. Guardamos en DB a través del servicio
+        const savedMessage = await chatService.saveMessage({
+            content: data.text,
+            sender_id: user.userId,
+            receiver_id: "admins",
+            isAdminMessage: user.role === "ADMIN"
         });
+
+        // 2. Avisamos a los administradores en tiempo real
+        // Mandamos el objeto que nos devolvió el servicio (que ya tiene ID y fecha)
+        io?.to("admins").emit("support:new_message", savedMessage);
+
+        // 3. Confirmamos al cliente que todo salió bien
+        callback({ success: true, message: "Mensaje enviado correctamente" });
+    } catch (error) {
+        console.error("❌ Error al procesar mensaje:", error);
+        callback({ success: false, message: "Error al enviar el mensaje" });
+    }
+});
+
+      
+        socket.on("support:response", async (data: { userId: string; response: string }, callback: Function) => {
+    try {
+        // 1. Doble check de seguridad (Senior mindset)
+        if (user.role !== "ADMIN") return callback({ success: false, message: "No autorizado" });
+
+        // 2. Guardamos la respuesta del admin en la DB
+        const savedResponse = await chatService.saveMessage({
+            content: data.response,
+            sender_id: user.userId, // El ID del admin
+            receiver_id: data.userId, // El ID del usuario que preguntó
+            isAdminMessage: true
+        });
+
+        // 3. Le mandamos la respuesta al usuario específico (a su sala privada)
+        io?.to(data.userId).emit("support:response", savedResponse);
+
+        // 4. Confirmamos al admin que se envió
+        callback({ success: true });
+    } catch (error) {
+        console.error("❌ Error al procesar respuesta:", error);
+        callback({ success: false });
+    }
+});
 
         socket.on("disconnect", () => {
             console.log("🔴 Cliente desconectado:", socket.id);
