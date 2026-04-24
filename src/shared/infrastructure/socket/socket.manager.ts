@@ -23,10 +23,13 @@ export const initSocket = (httpServer: HTTPServer): Server => {
     });
 
     io.use((socket: Socket, next) => {
+        console.log("🔍 Intento de conexión detectado..."); // <--- LOG DE DEBUG
         try {
             const cookieHeader = socket.handshake.headers.cookie;
+             console.log("🍪 Cookie recibida:", cookieHeader); // <--- LOG DE DEBUG
 
             if (!cookieHeader) {
+                 console.log("❌ No hay cookies en el handshake");
                 return next(new Error("No autorizado - sin cookies"));
             }
 
@@ -37,7 +40,7 @@ export const initSocket = (httpServer: HTTPServer): Server => {
                 })
             );
 
-            const token = cookies["access_token"];
+            const token = cookies["accessToken"];
 
             if (!token) {
                 return next(new Error("No autorizado - sin token"));

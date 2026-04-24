@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.io Debugger - Premium Edition</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top left, #1a1a2e, #16213e);
+            color: #e94560;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e94560;
+            border-radius: 10px;
+        }
+        .message-anim {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Sidebar: Auth & Status -->
+        <div class="md:col-span-1 space-y-6">
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-2xl font-bold mb-4 text-white">Configuración</h2>
+                
+                <div id="login-section" class="space-y-4">
+                    <p class="text-gray-400 text-sm">Paso 1: Autenticarse</p>
+                    <input type="email" id="email" placeholder="Email" class="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-pink-500 transition-all">
+                    <input type="password" id="password" placeholder="Password" class="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-pink-500 transition-all">
+                    <button onclick="login()" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 rounded-lg transition-all shadow-lg shadow-pink-600/20">
+                        Login
+                    </button>
+                </div>
+
+                <div id="status-section" class="mt-6 pt-6 border-t border-white/10 hidden">
+                    <p class="text-gray-400 text-sm mb-2">Paso 2: Conectar Socket</p>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div id="status-indicator" class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span id="status-text" class="text-sm font-medium uppercase tracking-wider text-gray-300">Desconectado</span>
+                    </div>
+                    <button onclick="connectSocket()" id="connect-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-all shadow-lg shadow-blue-600/20">
+                        Conectar
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass rounded-2xl p-6">
+                <h3 class="text-lg font-semibold mb-2 text-white">Logs del Sistema</h3>
+                <div id="logs" class="text-xs font-mono h-48 overflow-y-auto custom-scrollbar space-y-1 text-blue-300">
+                    <div>> Esperando acción...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main: Chat Window -->
+        <div class="md:col-span-2 glass rounded-2xl flex flex-col h-[600px] relative overflow-hidden">
+            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                <div>
+                    <h1 class="text-xl font-bold text-white">Chat de Soporte</h1>
+                    <p id="user-info" class="text-xs text-gray-400">Sin identificar</p>
+                </div>
+                <button onclick="clearChat()" class="text-xs text-gray-500 hover:text-gray-300">Limpiar</button>
+            </div>
+
+            <!-- Messages Area -->
+            <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                <div class="text-center text-gray-500 text-sm py-8">
+                    Autenticate y conectate para ver el historial
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 border-t border-white/10 bg-white/5">
+                <div class="flex gap-2">
+                    <input type="text" id="message-input" placeholder="Escribe un mensaje..." 
+                           class="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-pink-500 transition-all"
+                           onkeypress="if(event.key === 'Enter') sendMessage()">
+                    <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 p-3 rounded-xl transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentUser = null;
+
+        function addLog(msg, type = 'info') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            const color = type === 'error' ? 'text-red-400' : (type === 'success' ? 'text-green-400' : 'text-blue-300');
+            div.className = color;
+            div.textContent = `> ${new Date().toLocaleTimeString()}: ${msg}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            addLog(`Intentando login para ${email}...`);
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    addLog('Login exitoso!', 'success');
+                    currentUser = data.user;
+                    document.getElementById('user-info').textContent = `${currentUser.email} (${currentUser.role})`;
+                    document.getElementById('status-section').classList.remove('hidden');
+                    document.getElementById('login-section').classList.add('opacity-50');
+                } else {
+                    addLog(`Error: ${data.message || 'Credenciales inválidas'}`, 'error');
+                }
+            } catch (err) {
+                addLog(`Error de red: ${err.message}`, 'error');
+            }
+        }
+
+        function connectSocket() {
+            if (socket) socket.disconnect();
+
+            addLog('Conectando a Socket.io...');
+            
+            // Conectamos al mismo host
+            socket = io({
+                withCredentials: true
+            });
+
+            socket.on('connect', () => {
+                addLog(`Socket conectado! ID: ${socket.id}`, 'success');
+                document.getElementById('status-indicator').classList.replace('bg-red-500', 'bg-green-500');
+                document.getElementById('status-text').textContent = 'Conectado';
+                document.getElementById('status-text').classList.replace('text-gray-300', 'text-green-400');
+                document.getElementById('connect-btn').textContent = 'Reconectar';
+            });
+
+            socket.on('disconnect', () => {
+                addLog('Socket desconectado', 'error');
+                document.getElementById('status-indicator').classList.replace('bg-green-500', 'bg-red-500');
+                document.getElementById('status-text').textContent = 'Desconectado';
+            });
+
+            socket.on('connect_error', (err) => {
+                addLog(`Error de conexión: ${err.message}`, 'error');
+            });
+
+            // Listeners de negocio
+            socket.on('support:history', (history) => {
+                addLog(`Historial recibido: ${history.length} mensajes`);
+                const container = document.getElementById('messages');
+                container.innerHTML = '';
+                history.forEach(msg => appendMessage(msg));
+            });
+
+            socket.on('support:new_message', (msg) => {
+                addLog('Nuevo mensaje recibido (Admin View)');
+                appendMessage(msg);
+            });
+
+            socket.on('support:response', (msg) => {
+                addLog('Respuesta de soporte recibida');
+                appendMessage(msg);
+            });
+        }
+
+        function appendMessage(msg) {
+            const container = document.getElementById('messages');
+            const isMe = msg.sender_id === currentUser.userId;
+            
+            const div = document.createElement('div');
+            div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} message-anim`;
+            
+            const inner = `
+                <div class="max-w-[80%] rounded-2xl p-3 ${isMe ? 'bg-pink-600 text-white rounded-tr-none' : 'bg-white/10 text-gray-200 rounded-tl-none'}">
+                    <p class="text-sm">${msg.content}</p>
+                    <div class="flex justify-between items-center gap-4 mt-1">
+                        <span class="text-[10px] opacity-50">${new Date(msg.created_at || Date.now()).toLocaleTimeString()}</span>
+                        ${msg.isAdminMessage ? '<span class="text-[10px] bg-white/20 px-1 rounded">ADMIN</span>' : ''}
+                    </div>
+                </div>
+            `;
+            
+            div.innerHTML = inner;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            if (!text || !socket) return;
+
+            addLog(`Enviando: ${text.substring(0, 20)}...`);
+
+            // Si es admin, simulamos una respuesta a alguien o un mensaje general?
+            // El backend tiene support:message y support:response
+            
+            if (currentUser.role === 'ADMIN') {
+                // Como admin, podríamos responder al último mensaje que llegó si tuviéramos su ID
+                // Para simplificar el tester, si es ADMIN usamos support:message también, 
+                // pero el backend lo guardará como isAdminMessage: true
+                socket.emit('support:message', { text }, (res) => {
+                    if (res.success) {
+                        input.value = '';
+                        addLog('Mensaje enviado OK', 'success');
+                    } else {
+                        addLog('Error al enviar: ' + res.message, 'error');
+                    }
+                });
+            } else {
+                socket.emit('support:message', { text }, (res) => {
+                    if (res.success) {
+                        input.value = '';
+                        addLog('Mensaje enviado OK', 'success');
+                    } else {
+                        addLog('Error al enviar: ' + res.message, 'error');
+                    }
+                });
+            }
+        }
+
+        function clearChat() {
+            document.getElementById('messages').innerHTML = '<div class="text-center text-gray-500 text-sm py-8">Chat limpiado</div>';
+        }
+    </script>
+</body>
+</html>

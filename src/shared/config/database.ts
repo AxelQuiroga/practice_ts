@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { User } from '../../modules/auth/entities/User';
 import { RefreshToken } from '../../modules/auth/entities/RefreshToken';
+import { ChatMessage } from '../../modules/auth/entities/ChatMessage';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,7 +15,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'test',
   synchronize: true,
   logging: true,
-  entities: [User, RefreshToken],
+  entities: [User, RefreshToken, ChatMessage],
   migrations: ['src/migrations/**/*.ts'],
   subscribers: [],
 });

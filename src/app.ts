@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 import authRoutes from './modules/auth/auth.routes';
 import protectedRoutes from './modules/auth/protected';
 import adminRoutes from './modules/auth/admin.routes';
@@ -19,6 +20,10 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/protected', protectedRoutes);
 app.use('/api/admin', adminRoutes);
+
+app.get('/debug/chat', (req, res) => {
+  res.sendFile(path.join(__dirname, 'shared/infrastructure/socket/chat-tester.html'));
+});
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
