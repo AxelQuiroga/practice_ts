@@ -1,226 +1,96 @@
 # Backend API
 
-Backend REST API con autenticación JWT y autorización basada en roles, construido con Node.js, Express, TypeScript y PostgreSQL.
+Backend REST API con autenticación JWT, sistema de soporte multi-ticket en tiempo real y autorización basada en roles. Construido con Node.js, Express, TypeScript, Socket.io y PostgreSQL.
 
 ## 🚀 Características
 
-- Arquitectura modular con separación de concerns
-- Autenticación JWT con Access Token y Refresh Token
-- Sistema de roles (USER, ADMIN)
-- Validación de datos con Zod
-- Middleware de autenticación y autorización
-- Manejo centralizado de errores
-- ORM TypeORM con PostgreSQL
-- Gestión de cookies HTTP-only para tokens
-- API RESTful estructurada
-- TypeScript para type safety
+- **Arquitectura modular** con separación de concerns (Controller, Service, Repository)
+- **Sistema de Soporte Multi-Ticket**:
+    - Gestión de hasta 5 tickets simultáneos por usuario.
+    - Ciclo de vida automático: `OPEN`, `IN_PROGRESS`, `RESOLVED`.
+    - Transición automática a `IN_PROGRESS` cuando un Admin responde.
+- **Comunicación en Tiempo Real (Socket.io)**:
+    - Aislamiento por salas (`rooms`) específicas para cada ticket.
+    - Notificaciones instantáneas para usuarios y administradores.
+- **Autenticación Robusta**: JWT con Access Token y Refresh Token (HTTP-only cookies).
+- **Seguridad**: Sistema de roles (USER, ADMIN) y validación de esquemas con Zod.
+- **Persistencia**: ORM TypeORM con PostgreSQL.
 
-## 📋 Requisitos Previos
-
-- Node.js (v18 o superior)
-- PostgreSQL (v12 o superior)
-- npm o yarn
-
-## 🔧 Instalación
-
-1. Clonar el repositorio y navegar al directorio backend:
-
-```bash
-cd backend
-```
-
-2. Instalar dependencias:
-
-```bash
-npm install
-```
-
-3. Configurar variables de entorno:
-
-```bash
-cp .env.example .env
-```
-
-Editar el archivo `.env` con tus configuraciones:
-
-```env
-# Server Configuration
-PORT=3009
-NODE_ENV=development
-
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-DB_DATABASE=proyect1
-
-# JWT Configuration
-JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRES_IN=24h
-```
-
-## 🗄️ Configuración de Base de Datos
-
-Asegúrate de que PostgreSQL esté corriendo y crea la base de datos:
-
-```sql
-CREATE DATABASE proyect1;
-```
-
-La aplicación sincronizará automáticamente las tablas al iniciar (modo `synchronize: true` en `src/config/database.ts`).
-
-## 🏃 Scripts Disponibles
-
-```bash
-npm run dev    # Inicia el servidor en modo desarrollo con hot-reload
-npm test       # Ejecuta tests (por configurar)
-```
-
-## 📁 Estructura del Proyecto
+## 📁 Estructura del Proyecto (Módulos Core)
 
 ```
 backend/
 ├── src/
-│   ├── modules/             # Módulos de funcionalidad (features)
-│   │   └── auth/            # Módulo de autenticación
-│   │       ├── auth.controller.ts   # Controlador de autenticación
-│   │       ├── auth.dto.ts          # DTOs y schemas de validación (Zod)
-│   │       ├── auth.repository.ts   # Repositorio de datos
-│   │       ├── auth.routes.ts       # Rutas de autenticación
-│   │       ├── auth.service.ts      # Lógica de negocio
-│   │       ├── auth.types.ts        # Tipos TypeScript
-│   │       └── protected.ts         # Rutas protegidas de ejemplo
-│   ├── shared/             # Código compartido entre módulos
-│   │   ├── config/
-│   │   │   └── database.ts          # Configuración de TypeORM
-│   │   ├── entities/
-│   │   │   ├── User.ts              # Entidad User con roles
-│   │   │   └── RefreshToken.ts      # Entidad RefreshToken
-│   │   └── middlewares/
-│   │       ├── auth.ts              # Middleware de autenticación y autorización
-│   │       ├── errorHandler.ts      # Manejo centralizado de errores
-│   │       └── validation.ts        # Middleware de validación con Zod
-│   ├── app.ts               # Configuración de Express
-│   └── server.ts            # Punto de entrada
-├── .env                     # Variables de entorno (no versionar)
-├── .env.example             # Template de variables de entorno
-├── .gitignore               # Archivos ignorados por Git
-├── package.json             # Dependencias y scripts
-├── tsconfig.json            # Configuración de TypeScript
-└── README.md                # Este archivo
+│   ├── modules/
+│   │   └── auth/
+│   │       ├── chat/               # Lógica de Chat y Soporte
+│   │       │   └── chat.service.ts # Orquestación de tickets y mensajes
+│   │       ├── entities/
+│   │       │   ├── User.ts         # Usuario y Roles
+│   │       │   ├── Ticket.ts       # Entidad Soporte (OPEN/IN_PROGRESS/RESOLVED)
+│   │       │   └── ChatMessage.ts  # Mensajes vinculados a tickets
+│   │       ├── chat.repository.ts  # Persistencia de mensajes
+│   │       └── ticket.repository.ts # Gestión de estados y límites
+│   ├── shared/
+│   │   └── infrastructure/
+│   │       └── socket/
+│   │           ├── socket.manager.ts # Gateway de Socket.io y Handlers
+│   │           └── chat-tester.html  # Herramienta de Debug/Verification
+├── scratch/
+│   └── verify_tickets.ts           # Script de verificación de lógica de negocio
 ```
 
-## 🔌 API Endpoints
+## 🔌 Sistema de Soporte (Socket.io Events)
 
-### Autenticación (`/api/auth`)
+El sistema de soporte opera principalmente a través de WebSockets para garantizar inmediatez.
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Registrar nuevo usuario |
-| POST | `/api/auth/login` | Iniciar sesión |
-| POST | `/api/auth/refresh` | Renovar access token |
-| POST | `/api/auth/logout` | Cerrar sesión (token actual) |
-| POST | `/api/auth/logout-all` | Cerrar todas las sesiones |
+### Eventos del Usuario
+| Evento | Payload | Descripción |
+|--------|---------|-------------|
+| `support:message` | `{ text, subject?, ticketId? }` | Envía un mensaje. Si no hay `ticketId`, crea uno nuevo con el `subject`. |
 
-### Rutas Protegidas (`/api/protected`)
+### Eventos del Administrador
+| Evento | Payload | Descripción |
+|--------|---------|-------------|
+| `support:response` | `{ ticketId, response }` | Envía una respuesta. Cambia el estado del ticket a `IN_PROGRESS`. |
+| `support:resolve_ticket` | `{ ticketId }` | Marca el ticket como `RESOLVED`. |
 
-| Método | Endpoint | Descripción | Requisitos |
-|--------|----------|-------------|------------|
-| GET | `/api/protected/public` | Ruta pública | Ninguno |
-| GET | `/api/protected/authenticated` | Ruta autenticada | Login requerido |
-| GET | `/api/protected/admin` | Ruta admin | Rol ADMIN |
-| GET | `/api/protected/user-or-admin` | Ruta para USER o ADMIN | Rol USER o ADMIN |
+### Notificaciones de Salida
+| Evento | Payload | Destinatario |
+|--------|---------|--------------|
+| `support:new_message` | `ChatMessage & { ticketId }` | Room del ticket |
+| `support:ticket_created` | `Ticket` | Admins |
+| `support:ticket_resolved` | `{ ticketId }` | Room del ticket |
 
-### Health Check
+## 🧪 Verificación y Pruebas
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/health` | Verificar estado del servidor |
+Para asegurar la integridad del sistema, disponemos de dos métodos de prueba:
 
-## 🔐 Autenticación
-
-La API utiliza cookies HTTP-only para almacenar los tokens:
-
-- **Access Token**: Token de corta duración para autenticación
-- **Refresh Token**: Token de larga duración para renovar el access token
-
-### Ejemplo de Login
-
+### 1. Verificación Automática (Business Logic)
+Ejecutá el script de validación que testea límites de tickets y transiciones de estado:
 ```bash
-curl -X POST http://localhost:3009/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"password123"}' \
-  -c cookies.txt
+npx ts-node scratch/verify_tickets.ts
 ```
 
-### Ejemplo de Ruta Protegida
+### 2. Verificación Manual (Flow E2E)
+Utilizá el debugger premium incluido en:
+`src/shared/infrastructure/socket/chat-tester.html`
 
-```bash
-curl -X GET http://localhost:3009/api/protected/authenticated \
-  -b cookies.txt
-```
+Esta herramienta permite:
+- Simular login de Usuario o Admin.
+- Ver la lista de tickets activos.
+- Chatear en salas aisladas.
+- Verificar el cambio de estados en tiempo real.
 
-## 👥 Roles de Usuario
+## 🏃 Instalación y Ejecución
 
-- **USER**: Rol por defecto para usuarios registrados
-- **ADMIN**: Rol con permisos administrativos
+1. `npm install`
+2. Configurar `.env` (ver `.env.example`)
+3. `npm run dev`
 
-## 🛡️ Middleware
-
-El proyecto incluye varios middleware para proteger y validar rutas:
-
-### Autenticación y Autorización
-
-```typescript
-// Requiere autenticación
-authMiddleware
-
-// Requiere rol específico
-requireRole(UserRole.ADMIN)
-
-// Requiere rol de administrador (helper)
-requireAdmin
-```
-
-### Validación
-
-Los endpoints utilizan validación con Zod para asegurar la integridad de los datos:
-
-```typescript
-// Validar cuerpo de la solicitud
-validateBody(RegisterDtoSchema)
-
-// Validar cookies
-validateCookie(CookieRefreshTokenDtoSchema)
-```
-
-### Manejo de Errores
-
-El proyecto tiene manejo centralizado de errores con `errorHandler` y `notFoundHandler`:
-
-- **errorHandler**: Captura y formatea errores de manera consistente
-- **notFoundHandler**: Maneja rutas no encontradas
-- **AppError**: Clase personalizada para errores de aplicación
-
-## 🧪 Testing
-
-Los tests aún no están implementados. Se recomienda agregar:
-- Unit tests para servicios
-- Integration tests para endpoints
-- Tests para middleware de autenticación
-
-## 📝 Notas de Desarrollo
-
-- La base de datos se sincroniza automáticamente en modo desarrollo (`synchronize: true`)
-- Los tokens se almacenan en cookies HTTP-only por seguridad
-- Las contraseñas se hashean usando bcrypt
-- TypeORM maneja las migraciones automáticamente en desarrollo
-- Arquitectura modular: cada feature es un módulo en `modules/`
-- Código compartido en `shared/` (config, entities, middlewares)
-- Validación de datos con Zod schemas en cada módulo
-- Manejo centralizado de errores con middleware `errorHandler`
-- Los DTOs definen la estructura de entrada/salida de datos
+---
+**Nota**: El sistema impone un límite estricto de **5 tickets activos** por usuario para prevenir spam y saturación de soporte.
+Os definen la estructura de entrada/salida de datos
 
 ## 🤝 Contribución
 

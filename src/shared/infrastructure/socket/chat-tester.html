@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Socket.io Debugger - Premium Edition</title>
+    <title>Socket.io Debugger - Ticket Edition</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -37,18 +37,21 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .active-ticket {
+            border-left: 4px solid #e94560;
+            background: rgba(233, 69, 96, 0.1);
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
-    <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-6">
         
         <!-- Sidebar: Auth & Status -->
         <div class="md:col-span-1 space-y-6">
             <div class="glass rounded-2xl p-6">
-                <h2 class="text-2xl font-bold mb-4 text-white">Configuración</h2>
+                <h2 class="text-xl font-bold mb-4 text-white">Configuración</h2>
                 
                 <div id="login-section" class="space-y-4">
-                    <p class="text-gray-400 text-sm">Paso 1: Autenticarse</p>
                     <input type="email" id="email" placeholder="Email" class="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-pink-500 transition-all">
                     <input type="password" id="password" placeholder="Password" class="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-pink-500 transition-all">
                     <button onclick="login()" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 rounded-lg transition-all shadow-lg shadow-pink-600/20">
@@ -57,49 +60,71 @@
                 </div>
 
                 <div id="status-section" class="mt-6 pt-6 border-t border-white/10 hidden">
-                    <p class="text-gray-400 text-sm mb-2">Paso 2: Conectar Socket</p>
                     <div class="flex items-center gap-2 mb-4">
                         <div id="status-indicator" class="w-3 h-3 rounded-full bg-red-500"></div>
                         <span id="status-text" class="text-sm font-medium uppercase tracking-wider text-gray-300">Desconectado</span>
                     </div>
-                    <button onclick="connectSocket()" id="connect-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-all shadow-lg shadow-blue-600/20">
+                    <button onclick="connectSocket()" id="connect-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-all">
                         Conectar
                     </button>
                 </div>
             </div>
 
+            <!-- Tickets Section -->
+            <div id="tickets-section" class="glass rounded-2xl p-6 hidden">
+                <h3 class="text-lg font-semibold mb-4 text-white flex justify-between">
+                    Tickets
+                    <button onclick="showNewTicketForm()" class="text-xs bg-green-600 px-2 py-1 rounded hover:bg-green-700">+ Nuevo</button>
+                </h3>
+                <div id="ticket-list" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                    <p class="text-xs text-gray-500 italic">No hay tickets activos</p>
+                </div>
+            </div>
+
             <div class="glass rounded-2xl p-6">
-                <h3 class="text-lg font-semibold mb-2 text-white">Logs del Sistema</h3>
-                <div id="logs" class="text-xs font-mono h-48 overflow-y-auto custom-scrollbar space-y-1 text-blue-300">
-                    <div>> Esperando acción...</div>
+                <h3 class="text-lg font-semibold mb-2 text-white text-sm">System Logs</h3>
+                <div id="logs" class="text-[10px] font-mono h-32 overflow-y-auto custom-scrollbar space-y-1 text-blue-300">
+                    <div>> Ready...</div>
                 </div>
             </div>
         </div>
 
         <!-- Main: Chat Window -->
-        <div class="md:col-span-2 glass rounded-2xl flex flex-col h-[600px] relative overflow-hidden">
+        <div class="md:col-span-3 glass rounded-2xl flex flex-col h-[700px] relative overflow-hidden">
             <div class="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <div>
-                    <h1 class="text-xl font-bold text-white">Chat de Soporte</h1>
-                    <p id="user-info" class="text-xs text-gray-400">Sin identificar</p>
+                    <h1 class="text-xl font-bold text-white">Soporte Multi-Ticket</h1>
+                    <p id="active-ticket-info" class="text-xs text-pink-400 font-semibold">Seleccioná un ticket para chatear</p>
                 </div>
-                <button onclick="clearChat()" class="text-xs text-gray-500 hover:text-gray-300">Limpiar</button>
+                <div class="flex gap-2">
+                    <button id="resolve-btn" onclick="resolveCurrentTicket()" class="hidden text-xs bg-red-600/20 text-red-400 border border-red-400/30 px-3 py-1 rounded-lg hover:bg-red-600 hover:text-white transition-all">
+                        Resolver Ticket
+                    </button>
+                    <button onclick="clearChat()" class="text-xs text-gray-500 hover:text-gray-300">Limpiar</button>
+                </div>
             </div>
 
             <!-- Messages Area -->
             <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                <div class="text-center text-gray-500 text-sm py-8">
-                    Autenticate y conectate para ver el historial
+                <div class="flex flex-col items-center justify-center h-full text-gray-500 text-sm space-y-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <p>Iniciá sesión para comenzar</p>
                 </div>
             </div>
 
             <!-- Input Area -->
-            <div class="p-4 border-t border-white/10 bg-white/5">
+            <div id="input-area" class="p-4 border-t border-white/10 bg-white/5 opacity-50 pointer-events-none">
+                <div id="new-ticket-ui" class="mb-3 hidden">
+                    <input type="text" id="ticket-subject" placeholder="¿Cuál es el motivo de tu consulta?" 
+                           class="w-full bg-white/5 border border-white/10 rounded-xl p-2 text-sm text-white outline-none focus:border-green-500 mb-2">
+                </div>
                 <div class="flex gap-2">
                     <input type="text" id="message-input" placeholder="Escribe un mensaje..." 
                            class="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-pink-500 transition-all"
                            onkeypress="if(event.key === 'Enter') sendMessage()">
-                    <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 p-3 rounded-xl transition-all">
+                    <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 p-3 rounded-xl transition-all shadow-lg shadow-pink-600/20">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                         </svg>
@@ -112,6 +137,8 @@
     <script>
         let socket = null;
         let currentUser = null;
+        let currentTicketId = null;
+        let tickets = [];
 
         function addLog(msg, type = 'info') {
             const logs = document.getElementById('logs');
@@ -126,97 +153,138 @@
         async function login() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-
-            addLog(`Intentando login para ${email}...`);
-
             try {
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
-
                 const data = await res.json();
-
                 if (res.ok) {
-                    addLog('Login exitoso!', 'success');
+                    addLog('Login OK', 'success');
                     currentUser = data.user;
-                    document.getElementById('user-info').textContent = `${currentUser.email} (${currentUser.role})`;
                     document.getElementById('status-section').classList.remove('hidden');
-                    document.getElementById('login-section').classList.add('opacity-50');
+                    document.getElementById('login-section').classList.add('hidden');
+                    document.getElementById('tickets-section').classList.remove('hidden');
                 } else {
-                    addLog(`Error: ${data.message || 'Credenciales inválidas'}`, 'error');
+                    addLog('Login Falló: ' + data.message, 'error');
                 }
             } catch (err) {
-                addLog(`Error de red: ${err.message}`, 'error');
+                addLog('Error: ' + err.message, 'error');
             }
         }
 
         function connectSocket() {
             if (socket) socket.disconnect();
-
-            addLog('Conectando a Socket.io...');
-            
-            // Conectamos al mismo host
-            socket = io({
-                withCredentials: true
-            });
+            socket = io({ withCredentials: true });
 
             socket.on('connect', () => {
-                addLog(`Socket conectado! ID: ${socket.id}`, 'success');
+                addLog('Socket Conectado!', 'success');
                 document.getElementById('status-indicator').classList.replace('bg-red-500', 'bg-green-500');
                 document.getElementById('status-text').textContent = 'Conectado';
-                document.getElementById('status-text').classList.replace('text-gray-300', 'text-green-400');
-                document.getElementById('connect-btn').textContent = 'Reconectar';
+                document.getElementById('input-area').classList.remove('opacity-50', 'pointer-events-none');
+                
+                // Si es admin, escuchamos creación de tickets
+                if (currentUser.role === 'ADMIN') {
+                    addLog('Modo ADMIN activo', 'success');
+                }
             });
 
-            socket.on('disconnect', () => {
-                addLog('Socket desconectado', 'error');
-                document.getElementById('status-indicator').classList.replace('bg-green-500', 'bg-red-500');
-                document.getElementById('status-text').textContent = 'Desconectado';
+            socket.on('support:ticket_created', (ticket) => {
+                addLog(`Nuevo Ticket: ${ticket.subject}`, 'success');
+                if (currentUser.role === 'ADMIN') {
+                    updateTicketList([ticket, ...tickets]);
+                }
             });
 
-            socket.on('connect_error', (err) => {
-                addLog(`Error de conexión: ${err.message}`, 'error');
+            socket.on('support:new_message', (data) => {
+                // data puede ser el mensaje directo o { ...savedMessage, ticketId }
+                const msg = data.id ? data : data;
+                const ticketId = data.ticketId || msg.ticket_id;
+                
+                addLog(`Mensaje en Ticket ${ticketId.substring(0,8)}`);
+                if (currentTicketId === ticketId) {
+                    appendMessage(msg);
+                }
             });
 
-            // Listeners de negocio
-            socket.on('support:history', (history) => {
-                addLog(`Historial recibido: ${history.length} mensajes`);
-                const container = document.getElementById('messages');
-                container.innerHTML = '';
-                history.forEach(msg => appendMessage(msg));
+            socket.on('support:ticket_resolved', (data) => {
+                addLog(`Ticket ${data.ticketId.substring(0,8)} RESUELTO`, 'success');
+                if (currentTicketId === data.ticketId) {
+                    document.getElementById('active-ticket-info').textContent = '[RESUELTO] ' + document.getElementById('active-ticket-info').textContent;
+                    document.getElementById('resolve-btn').classList.add('hidden');
+                }
+            });
+        }
+
+        function showNewTicketForm() {
+            currentTicketId = null;
+            document.getElementById('new-ticket-ui').classList.remove('hidden');
+            document.getElementById('active-ticket-info').textContent = 'Creando Nuevo Ticket...';
+            document.getElementById('messages').innerHTML = '<div class="text-center text-gray-500 py-8">Escribí un asunto y tu primer mensaje.</div>';
+            document.getElementById('resolve-btn').classList.add('hidden');
+            
+            // Desmarcar seleccionados
+            document.querySelectorAll('#ticket-list > div').forEach(el => el.classList.remove('active-ticket'));
+        }
+
+        function selectTicket(id, subject) {
+            currentTicketId = id;
+            document.getElementById('new-ticket-ui').classList.add('hidden');
+            document.getElementById('active-ticket-info').textContent = `Ticket: ${subject}`;
+            document.getElementById('messages').innerHTML = '<div class="text-center text-gray-500 py-8">Cargando mensajes...</div>';
+            
+            if (currentUser.role === 'ADMIN') {
+                document.getElementById('resolve-btn').classList.remove('hidden');
+            }
+
+            // Marcar visualmente
+            document.querySelectorAll('#ticket-list > div').forEach(el => {
+                el.classList.toggle('active-ticket', el.getAttribute('data-id') === id);
             });
 
-            socket.on('support:new_message', (msg) => {
-                addLog('Nuevo mensaje recibido (Admin View)');
-                appendMessage(msg);
+            // En un caso real, acá pediríamos el historial por ticketId
+            // Para este tester, limpiaremos y esperaremos nuevos mensajes o simularemos carga
+            addLog(`Cambiando a sala: ticket:${id}`);
+            socket.emit('support:message', { text: '(System: joining room)', ticketId: id }, (res) => {
+                document.getElementById('messages').innerHTML = '';
             });
+        }
 
-            socket.on('support:response', (msg) => {
-                addLog('Respuesta de soporte recibida');
-                appendMessage(msg);
+        function updateTicketList(newList) {
+            tickets = newList;
+            const container = document.getElementById('ticket-list');
+            container.innerHTML = '';
+            tickets.forEach(t => {
+                const div = document.createElement('div');
+                div.setAttribute('data-id', t.id);
+                div.className = 'glass p-3 rounded-xl cursor-pointer hover:bg-white/5 transition-all text-sm';
+                div.onclick = () => selectTicket(t.id, t.subject);
+                div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="font-bold text-white truncate">${t.subject}</span>
+                        <span class="text-[9px] bg-blue-500/20 text-blue-300 px-1 rounded">${t.status}</span>
+                    </div>
+                    <div class="text-[10px] text-gray-400 mt-1">${t.userEmail || 'Soporte'}</div>
+                `;
+                container.appendChild(div);
             });
         }
 
         function appendMessage(msg) {
             const container = document.getElementById('messages');
             const isMe = msg.sender_id === currentUser.userId;
-            
             const div = document.createElement('div');
             div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} message-anim`;
-            
-            const inner = `
+            div.innerHTML = `
                 <div class="max-w-[80%] rounded-2xl p-3 ${isMe ? 'bg-pink-600 text-white rounded-tr-none' : 'bg-white/10 text-gray-200 rounded-tl-none'}">
                     <p class="text-sm">${msg.content}</p>
                     <div class="flex justify-between items-center gap-4 mt-1">
-                        <span class="text-[10px] opacity-50">${new Date(msg.created_at || Date.now()).toLocaleTimeString()}</span>
+                        <span class="text-[10px] opacity-50">${new Date().toLocaleTimeString()}</span>
                         ${msg.isAdminMessage ? '<span class="text-[10px] bg-white/20 px-1 rounded">ADMIN</span>' : ''}
                     </div>
                 </div>
             `;
-            
-            div.innerHTML = inner;
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         }
@@ -226,37 +294,38 @@
             const text = input.value.trim();
             if (!text || !socket) return;
 
-            addLog(`Enviando: ${text.substring(0, 20)}...`);
-
-            // Si es admin, simulamos una respuesta a alguien o un mensaje general?
-            // El backend tiene support:message y support:response
-            
-            if (currentUser.role === 'ADMIN') {
-                // Como admin, podríamos responder al último mensaje que llegó si tuviéramos su ID
-                // Para simplificar el tester, si es ADMIN usamos support:message también, 
-                // pero el backend lo guardará como isAdminMessage: true
-                socket.emit('support:message', { text }, (res) => {
-                    if (res.success) {
-                        input.value = '';
-                        addLog('Mensaje enviado OK', 'success');
-                    } else {
-                        addLog('Error al enviar: ' + res.message, 'error');
-                    }
-                });
+            const payload = { text };
+            if (currentTicketId) {
+                payload.ticketId = currentTicketId;
             } else {
-                socket.emit('support:message', { text }, (res) => {
-                    if (res.success) {
-                        input.value = '';
-                        addLog('Mensaje enviado OK', 'success');
-                    } else {
-                        addLog('Error al enviar: ' + res.message, 'error');
-                    }
-                });
+                const subjectInput = document.getElementById('ticket-subject');
+                payload.subject = subjectInput.value.trim() || "Consulta General";
             }
+
+            socket.emit(currentUser.role === 'ADMIN' && currentTicketId ? 'support:response' : 'support:message', payload, (res) => {
+                if (res.success) {
+                    input.value = '';
+                    if (!currentTicketId && res.ticketId) {
+                        addLog('Ticket creado!', 'success');
+                        currentTicketId = res.ticketId;
+                        document.getElementById('new-ticket-ui').classList.add('hidden');
+                        document.getElementById('active-ticket-info').textContent = `Ticket: ${payload.subject}`;
+                    }
+                } else {
+                    addLog('Error: ' + res.message, 'error');
+                }
+            });
+        }
+
+        function resolveCurrentTicket() {
+            if (!currentTicketId || !socket) return;
+            socket.emit('support:resolve_ticket', { ticketId: currentTicketId }, (res) => {
+                if (res.success) addLog('Ticket resuelto', 'success');
+            });
         }
 
         function clearChat() {
-            document.getElementById('messages').innerHTML = '<div class="text-center text-gray-500 text-sm py-8">Chat limpiado</div>';
+            document.getElementById('messages').innerHTML = '';
         }
     </script>
 </body>

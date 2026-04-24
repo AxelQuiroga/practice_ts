@@ -7,6 +7,7 @@ export interface IChatRepository {
     getHistory(userId: string): Promise<ChatMessage[]>;
     getAdminMessages(relations?: string[]): Promise<ChatMessage[]>;
     create(data: Partial<ChatMessage>): Promise<ChatMessage>;
+    getByTicketId(ticketId: string): Promise<ChatMessage[]>;
 }
 
 export class ChatRepository implements IChatRepository {
@@ -39,5 +40,12 @@ export class ChatRepository implements IChatRepository {
     async create(data: Partial<ChatMessage>): Promise<ChatMessage> {
         const message = this.repository.create(data);
         return await this.repository.save(message);
-    }   
+    }
+
+    async getByTicketId(ticketId: string): Promise<ChatMessage[]> {
+        return await this.repository.find({
+            where: { ticket_id: ticketId },
+            order: { createdAt: 'ASC' }
+        });
+    }
 }

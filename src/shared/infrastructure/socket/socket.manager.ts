@@ -3,6 +3,7 @@ import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import env from "dotenv";
 import { chatService } from "../../../shared/config/dependencies";
+import { TicketStatus } from "../../../modules/auth/entities/Ticket";
 
 env.config();
 
@@ -86,52 +87,98 @@ export const initSocket = (httpServer: HTTPServer): Server => {
         socket.emit("support:history", history);
 
         // El cliente envía un mensaje de soporte
-    socket.on("support:message", async (data: { text: string }, callback: Function) => {
-    try {
-        // 1. Guardamos en DB a través del servicio
-        const savedMessage = await chatService.saveMessage({
-            content: data.text,
-            sender_id: user.userId,
-            receiver_id: "admins",
-            isAdminMessage: user.role === "ADMIN"
+        socket.on("support:message", async (data: { text: string; ticketId?: string; subject?: string }, callback: Function) => {
+            try {
+                let ticketId = data.ticketId;
+
+                // 1. Si no hay ticketId, creamos uno nuevo (Límite de 5 se chequea en el servicio)
+                if (!ticketId) {
+                    if (!data.subject) {
+                        return callback({ success: false, message: "El asunto es requerido para abrir un nuevo ticket" });
+                    }
+                    const newTicket = await chatService.createTicket(user.userId, data.subject);
+                    ticketId = newTicket.id;
+                    socket.join(`ticket:${ticketId}`);
+                    
+                    // Notificamos a los admins que hay un nuevo ticket en la lista
+                    io?.to("admins").emit("support:ticket_created", {
+                        ...newTicket,
+                        userEmail: user.email
+                    });
+                } else {
+                    // Si ya existe, nos aseguramos de estar en la sala
+                    socket.join(`ticket:${ticketId}`);
+                }
+
+                // 2. Guardamos el mensaje vinculado al ticket
+                const savedMessage = await chatService.saveMessage({
+                    content: data.text,
+                    sender_id: user.userId,
+                    receiver_id: user.role === "ADMIN" ? "user" : "admins", // Simplificado
+                    isAdminMessage: user.role === "ADMIN",
+                    ticket_id: ticketId
+                });
+
+                // 3. Emitimos el mensaje a la sala específica del ticket
+                io?.to(`ticket:${ticketId}`).emit("support:new_message", {
+                    ...savedMessage,
+                    ticketId
+                });
+
+                // 4. Confirmamos al cliente
+                callback({ success: true, ticketId });
+            } catch (error: any) {
+                console.error("❌ Error al procesar mensaje:", error);
+                callback({ success: false, message: error.message || "Error al enviar el mensaje" });
+            }
         });
-
-        // 2. Avisamos a los administradores en tiempo real
-        // Mandamos el objeto que nos devolvió el servicio (que ya tiene ID y fecha)
-        io?.to("admins").emit("support:new_message", savedMessage);
-
-        // 3. Confirmamos al cliente que todo salió bien
-        callback({ success: true, message: "Mensaje enviado correctamente" });
-    } catch (error) {
-        console.error("❌ Error al procesar mensaje:", error);
-        callback({ success: false, message: "Error al enviar el mensaje" });
-    }
-});
 
       
-        socket.on("support:response", async (data: { userId: string; response: string }, callback: Function) => {
-    try {
-        // 1. Doble check de seguridad (Senior mindset)
-        if (user.role !== "ADMIN") return callback({ success: false, message: "No autorizado" });
+        socket.on("support:response", async (data: { ticketId: string; response: string }, callback: Function) => {
+            try {
+                if (user.role !== "ADMIN") return callback({ success: false, message: "No autorizado" });
 
-        // 2. Guardamos la respuesta del admin en la DB
-        const savedResponse = await chatService.saveMessage({
-            content: data.response,
-            sender_id: user.userId, // El ID del admin
-            receiver_id: data.userId, // El ID del usuario que preguntó
-            isAdminMessage: true
+                // 1. Guardamos la respuesta vinculada al ticket
+                const savedResponse = await chatService.saveMessage({
+                    content: data.response,
+                    sender_id: user.userId,
+                    receiver_id: "user", // El receptor se infiere del ticket en el cliente
+                    isAdminMessage: true,
+                    ticket_id: data.ticketId
+                });
+
+                // 2. Transición automática de estado: OPEN -> IN_PROGRESS
+                await chatService.updateTicketStatus(data.ticketId, TicketStatus.IN_PROGRESS);
+
+                // 3. Emitimos a la sala del ticket (usuario y otros admins suscritos)
+                io?.to(`ticket:${data.ticketId}`).emit("support:new_message", {
+                    ...savedResponse,
+                    ticketId: data.ticketId
+                });
+
+                callback({ success: true });
+            } catch (error) {
+                console.error("❌ Error al procesar respuesta:", error);
+                callback({ success: false });
+            }
         });
 
-        // 3. Le mandamos la respuesta al usuario específico (a su sala privada)
-        io?.to(data.userId).emit("support:response", savedResponse);
+        // Handler para resolver tickets
+        socket.on("support:resolve_ticket", async (data: { ticketId: string }, callback: Function) => {
+            try {
+                if (user.role !== "ADMIN") return callback({ success: false, message: "No autorizado" });
 
-        // 4. Confirmamos al admin que se envió
-        callback({ success: true });
-    } catch (error) {
-        console.error("❌ Error al procesar respuesta:", error);
-        callback({ success: false });
-    }
-});
+                await chatService.resolveTicket(data.ticketId);
+                
+                // Notificamos a la sala que el ticket se cerró
+                io?.to(`ticket:${data.ticketId}`).emit("support:ticket_resolved", { ticketId: data.ticketId });
+
+                callback({ success: true });
+            } catch (error) {
+                console.error("❌ Error al resolver ticket:", error);
+                callback({ success: false });
+            }
+        });
 
         socket.on("disconnect", () => {
             console.log("🔴 Cliente desconectado:", socket.id);

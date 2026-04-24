@@ -103,7 +103,7 @@ export class AuthController {
   }
 
   async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
-    if (!req.user) {
+    if (!(req as any).user) {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
@@ -111,9 +111,9 @@ export class AuthController {
     // El middleware ya pobló req.user con los datos del token
     const validatedResponse = AuthResponseDtoSchema.parse({
       user: {
-        id: req.user.userId,
-        email: req.user.email,
-        role: req.user.role,
+        id: (req as any).user.userId,
+        email: (req as any).user.email,
+        role: (req as any).user.role,
         // Nota: Si necesitáramos más datos (como createdAt), 
         // acá llamaríamos al authService.findById
       }
@@ -135,7 +135,7 @@ export class AuthController {
   async deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
      const { id } = req.params;
-     const adminId = req.user?.userId;
+     const adminId = (req as any).user?.userId;
     await this.authService.deleteUser(id as string, adminId as string);
     const validatedResponse = TokenResponseDtoSchema.parse({ message: 'User deleted successfully' });
     res.status(200).json(validatedResponse);
